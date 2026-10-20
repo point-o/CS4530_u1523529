@@ -10,6 +10,11 @@ import com.example.bluromatic.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import android.net.Uri
+import androidx.work.workDataOf
+import com.example.bluromatic.KEY_BLUR_LEVEL
+import com.example.bluromatic.KEY_IMAGE_URI
+import androidx.core.net.toUri
 
 private const val TAG = "BlurWorker"
 
@@ -19,6 +24,9 @@ class BlurWorker(
 ) : CoroutineWorker(ctx, params) {
 
     override suspend fun doWork(): Result {
+
+        val resourceUri = inputData.getString(KEY_IMAGE_URI)
+        val blurLevel = inputData.getInt(KEY_BLUR_LEVEL, 1)
 
         makeStatusNotification(
             applicationContext.resources.getString(
@@ -31,15 +39,24 @@ class BlurWorker(
             delay(DELAY_TIME_MILLIS)
 
             return@withContext try {
-
-                val picture = BitmapFactory.decodeResource(
-                    applicationContext.resources,
-                    R.drawable.android_cupcake
+                require(!resourceUri.isNullOrBlank()) {
+                    val errorMessage =
+                        applicationContext.resources.getString(
+                            R.string.invalid_input_uri
+                        )
+                    Log.e(TAG, errorMessage)
+                    errorMessage
+                }
+                val resolver = applicationContext.contentResolver
+                val picture = BitmapFactory.decodeStream(
+                    resolver.openInputStream(
+                        resourceUri.toUri()
+                    )
                 )
 
                 val output = blurBitmap(
                     picture,
-                    1
+                    blurLevel
                 )
 
                 val outputUri = writeBitmapToFile(
@@ -47,12 +64,11 @@ class BlurWorker(
                     output
                 )
 
-                makeStatusNotification(
-                    "Output is $outputUri",
-                    applicationContext
+                val outputData = workDataOf(
+                    KEY_IMAGE_URI to outputUri.toString()
                 )
 
-                Result.success()
+                Result.success(outputData)
 
             } catch (throwable: Throwable) {
 
