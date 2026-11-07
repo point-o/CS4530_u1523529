@@ -61,9 +61,9 @@ class MarbleViewModel : ViewModel() {
     fun step(dt: Float) {
         if (!initialized) return
 
-        velocityX += gravityX * accelerationScale * dt
+        velocityX -= gravityX * accelerationScale * dt
 
-        velocityY -= gravityY * accelerationScale * dt
+        velocityY += gravityY * accelerationScale * dt
 
         val damping = exp(-frictionStrength * dt)
         velocityX *= damping
